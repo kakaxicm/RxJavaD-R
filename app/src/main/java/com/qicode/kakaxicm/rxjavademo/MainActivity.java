@@ -16,6 +16,7 @@ import io.reactivex.ObservableSource;
 import io.reactivex.Observer;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Consumer;
+import io.reactivex.functions.Function;
 
 
 public class MainActivity extends AppCompatActivity {
@@ -257,7 +258,7 @@ public class MainActivity extends AppCompatActivity {
         // 参数1 = 事件序列起始点；
         // 参数2 = 事件数量；
         // 注：若设置为负数，则会抛出异常
-        Observable.range(3,10)
+        Observable.range(3, 10)
                 // 该例子发送的事件序列特点：从3开始发送，每次发送事件递增1，一共发送10个事件
                 .subscribe(new Observer<Integer>() {
                     @Override
@@ -268,7 +269,7 @@ public class MainActivity extends AppCompatActivity {
 
                     @Override
                     public void onNext(Integer value) {
-                        Log.d(TAG, "range接收到了事件"+ value  );
+                        Log.d(TAG, "range接收到了事件" + value);
                     }
 
                     @Override
@@ -282,6 +283,82 @@ public class MainActivity extends AppCompatActivity {
                     }
 
                 });
+        /**
+         * 变换操作符
+         */
+        //1.map将事件通过一个函数做变换,一般用作数据类型转换
+        Observable.create(new ObservableOnSubscribe<Integer>() {
+            @Override
+            public void subscribe(ObservableEmitter<Integer> emitter) throws Exception {
+                emitter.onNext(1);
+                emitter.onNext(2);
+                emitter.onNext(3);
+            }
+            //Integer转换成String
+        }).map(new Function<Integer, String>() {
+            @Override
+            public String apply(Integer integer) throws Exception {
+                return "使用 Map变换操作符 将事件" + integer + "的参数从 整型" + integer + " 变换成 字符串类型" + integer;
+            }
+        }).subscribe(new Consumer<String>() {
+            @Override
+            public void accept(String s) throws Exception {
+                Log.d(TAG, s);
+            }
+        });
+        //2.FlatMap/concatMap 将每个事件进行拆分和转换，再合并成一个新的事件序列，最后再发送,前者无序发送，后者有序发送
+        Observable.create(new ObservableOnSubscribe<Integer>() {
+            @Override
+            public void subscribe(ObservableEmitter<Integer> emitter) throws Exception {
+                emitter.onNext(1);
+                emitter.onNext(2);
+                emitter.onNext(3);
+            }
+        }).concatMap(new Function<Integer, ObservableSource<String>>() {
+            @Override
+            public ObservableSource<String> apply(Integer integer) throws Exception {
+                //事件拆分
+                final List<String> list = new ArrayList<>();
+                for (int i = 0; i < 3; i++) {
+                    list.add("我是事件 " + integer + "拆分后的子事件" + i);
+                    // 通过flatMap中将被观察者生产的事件序列先进行拆分，再将每个事件转换为一个新的发送三个String事件
+                    // 最终合并，再发送给被观察者
+                }
+                return Observable.fromIterable(list);
+            }
+        }).subscribe(new Consumer<String>() {
+            @Override
+            public void accept(String s) throws Exception {
+                Log.d(TAG, s);
+            }
+        });
+
+        //3.Buffer():缓存被观察者发送的事件
+        Observable.just(1,2,3,4,5).buffer(3,1).subscribe(new Observer<List<Integer>>() {
+            @Override
+            public void onSubscribe(Disposable d) {
+
+            }
+
+            @Override
+            public void onNext(List<Integer> stringList) {
+                Log.d(TAG, " 缓存区里的事件数量 = " +  stringList.size());
+                for (Integer value : stringList) {
+                    Log.d(TAG, " 事件 = " + value);
+                }
+            }
+
+            @Override
+            public void onError(Throwable e) {
+                Log.d(TAG, "对Error事件作出响应" );
+            }
+
+            @Override
+            public void onComplete() {
+                Log.d(TAG, "对Complete事件作出响应");
+            }
+        });
+
     }
 
 
